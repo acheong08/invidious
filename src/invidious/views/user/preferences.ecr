@@ -45,7 +45,7 @@
             <div class="pure-control-group">
                 <label for="speed"><%= translate(locale, "preferences_speed_label") %></label>
                 <select name="speed" id="speed">
-                    <% {2.0, 1.75, 1.5, 1.25, 1.0, 0.75, 0.5, 0.25}.each do |option| %>
+                    <% {4.0, 3.0, 2.0, 1.75, 1.5, 1.25, 1.0, 0.75, 0.5, 0.25}.each do |option| %>
                         <option <% if preferences.speed == option %> selected <% end %>><%= option %></option>
                     <% end %>
                 </select>
