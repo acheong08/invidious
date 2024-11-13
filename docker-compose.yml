@@ -1,6 +1,12 @@
 version: "3"
 services:
-
+  valkey:
+    image: valkey/valkey:7.2-alpine
+    restart: unless-stopped
+    volumes:
+      - "./valkey:/data"
+    ports:
+      - "127.0.0.1:6379:6379"
   invidious:
     build:
       context: .
@@ -9,8 +15,7 @@ services:
     restart: unless-stopped
     ports:
       - "100.64.0.6:3000:3000"
-    volumes:
-      - /var/run/valkey/valkey.sock:/var/run/valkey/valkey.sock:rw
+
     environment:
       # Please read the following file for a comprehensive list of all available
       # configuration options and their associated syntax:
@@ -25,13 +30,11 @@ services:
         check_tables: true
         external_port: 443
         domain: iv.duti.dev
-        # https_only: false
+        https_only: true
         statistics_enabled: true
-        hmac_key: "CHANGEME!!"
-        redis_socket: /var/run/valkey/valkey.sock
+        hmac_key: "CHANGEME!!!"
+        redis_url: tcp://valkey:6379
         signature_server: inv_sig_helper:12999
-        visitor_data: CHANGEME
-        po_token: CHANGEME
 
     healthcheck:
       test: wget -nv --tries=1 --spider http://127.0.0.1:3000/api/v1/trending || exit 1
@@ -44,6 +47,7 @@ services:
         max-file: "4"
     depends_on:
       - invidious-db
+      - valkey
 
   inv_sig_helper:
     image: quay.io/invidious/inv-sig-helper:latest
@@ -71,6 +75,17 @@ services:
       POSTGRES_PASSWORD: kemal
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+  ptgen:
+    build:
+      context: ./external/youtube-po-token-generator
+      dockerfile: Dockerfile
+    cpus: 0.1
+    restart: unless-stopped
+    environment:
+      - HOST=valkey
+      - RENEW_INTERVAL=60
+    depends_on:
+      - haproxy
 
 volumes:
   postgresdata: 

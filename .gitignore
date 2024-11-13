@@ -1,4 +1,6 @@
 /docs/
+/external
+/valkey
 /dev/
 /lib/
 /bin/
