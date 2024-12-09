@@ -14,9 +14,23 @@ on:
 jobs:
   build:
     runs-on: runner
-    
+
     steps:
-    - uses: https://code.forgejo.org/actions/checkout@v2
+    - uses: https://code.forgejo.org/actions/checkout@v4
+
+    - name: Set up cache
+      uses: https://code.forgejo.org/actions/cache@v3
+      id: ccache-restore
+      with:
+        path: |
+          ./lib
+        key: ${{ runner.os }}-invidious-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-invidious-
+
+    - name: Create cache directory
+      if: steps.ccache-restore.outputs.cache-hit != 'true'
+      run: mkdir -p ./lib
 
     - uses: https://code.forgejo.org/docker/setup-buildx-action@v3
       name: Setup Docker BuildX system
@@ -32,7 +46,7 @@ jobs:
       id: meta
       uses: https://github.com/docker/metadata-action@v5
       with:
-        images: git.nadeko.net/fijxu/invidious
+        images: git.nadeko.net/fijxu/invidious-with-companion
         tags: |
           type=sha,format=short,prefix={{date 'YYYY.MM.DD'}}-,enable=${{ github.ref == format('refs/heads/{0}', 'master') }}
           type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', 'master') }}
@@ -44,9 +58,6 @@ jobs:
         file: docker/Dockerfile
         tags: ${{ steps.meta.outputs.tags }}
         platforms: linux/amd64
-        # cache-from: type=gha
-        # cache-to: type=gha,mode=max
         push: true
         build-args: |
           "release=1"
-
