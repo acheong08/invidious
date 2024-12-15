@@ -397,3 +397,22 @@ def gen_videoplayback_proxy_list
   end
   return external_videoplayback_proxy
 end
+
+def encrypt_ecb_without_salt(data, key)
+  cipher = OpenSSL::Cipher.new("aes-128-ecb")
+  cipher.encrypt
+  cipher.key = key
+
+  io = IO::Memory.new
+  io.write(cipher.update(data))
+  io.write(cipher.final)
+  io.rewind
+
+  return io
+end
+
+def invidious_companion_encrypt(data)
+  timestamp = Time.utc.to_unix
+  encrypted_data = encrypt_ecb_without_salt("#{timestamp}|#{data}", CONFIG.invidious_companion_key)
+  return Base64.urlsafe_encode(encrypted_data)
+end
