@@ -222,6 +222,12 @@ module Invidious::Routes::Watch
         env.response.headers["Content-Security-Policy"]
           .gsub("media-src", "media-src #{companion_base_url}")
           .gsub("connect-src", "connect-src #{companion_base_url}")
+      if external_videoplayback_proxy = video.invidious_companion.dig?("external_videoplayback_proxy").try &.as_s
+        env.response.headers["Content-Security-Policy"] =
+          env.response.headers["Content-Security-Policy"]
+            .gsub("media-src #{companion_base_url}", "media-src #{companion_base_url} #{external_videoplayback_proxy}")
+            .gsub("connect-src #{companion_base_url}", "connect-src #{companion_base_url} #{external_videoplayback_proxy}")
+      end
     end
 
     templated "watch"
