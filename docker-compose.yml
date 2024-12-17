@@ -16,25 +16,11 @@ services:
     ports:
       - "100.64.0.6:3000:3000"
 
+    volumes:
+      - ./config/config.yml:/etc/invidious/config.yml:ro
+
     environment:
-      # Please read the following file for a comprehensive list of all available
-      # configuration options and their associated syntax:
-      # https://github.com/iv-org/invidious/blob/master/config/config.example.yml
-      INVIDIOUS_CONFIG: |
-        db:
-          dbname: invidious
-          user: kemal
-          password: kemal
-          host: invidious-db
-          port: 5432
-        check_tables: true
-        external_port: 443
-        domain: iv.duti.dev
-        https_only: true
-        statistics_enabled: true
-        hmac_key: "CHANGEME!!!"
-        redis_url: tcp://valkey:6379
-        signature_server: inv_sig_helper:12999
+      INVIDIOUS_CONFIG_FILE: /etc/invidious/config.yml 
 
     healthcheck:
       test: wget -nv --tries=1 --spider http://127.0.0.1:3000/api/v1/trending || exit 1
@@ -48,17 +34,25 @@ services:
     depends_on:
       - invidious-db
       - valkey
+      - invidious_companion
 
-  inv_sig_helper:
-    image: quay.io/invidious/inv-sig-helper:latest
-    init: true
-    command: ["--tcp", "0.0.0.0:12999"]
+  invidious_companion:
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile
+    image: quay.io/invidious/invidious-companion:latest
+    ports:
+      - 100.64.0.6:8282:8282
     environment:
-      - RUST_LOG=info
+      SERVER_SECRET_KEY: IAmNotAHuTaoMainBro
     restart: unless-stopped
     cap_drop:
       - ALL
     read_only: true
+    user: 10001:10001
+    # cache for youtube library
+    # volumes:
+    #   - /var/tmp/youtubei.js:/var/tmp/youtubei.js:rw
     security_opt:
       - no-new-privileges:true
  
