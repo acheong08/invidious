@@ -15,12 +15,25 @@ services:
     restart: unless-stopped
     ports:
       - "100.64.0.6:3000:3000"
-
-    volumes:
-      - ./config/config.yml:/etc/invidious/config.yml:ro
-
     environment:
-      INVIDIOUS_CONFIG_FILE: /etc/invidious/config.yml 
+      INVIDIOUS_CONFIG: |
+        check_tables: true
+        external_port: 443
+        domain: iv.duti.dev
+        https_only: true
+        statistics_enabled: true
+        hmac_key: "JKnsuih7876873!@#"
+        redis_url: tcp://valkey:6379
+        db:
+          user: kemal
+          password: kemal
+          host: invidious-db
+          port: 5432
+          dbname: invidious
+        invidious_companion:
+         - private_url: "http://invidious_companion:8282"
+           public_url: "https://iv.duti.dev/companion"
+        invidious_companion_key: "IAmNotAHuTaoMainBro"
 
     healthcheck:
       test: wget -nv --tries=1 --spider http://127.0.0.1:3000/api/v1/trending || exit 1
@@ -37,14 +50,15 @@ services:
       - invidious_companion
 
   invidious_companion:
-    # build:
-    #   context: .
-    #   dockerfile: Dockerfile
+    build:
+      context: ./external/invidious-companion
+      dockerfile: Dockerfile
     image: quay.io/invidious/invidious-companion:latest
     ports:
       - 100.64.0.6:8282:8282
     environment:
       SERVER_SECRET_KEY: IAmNotAHuTaoMainBro
+      SERVER_BASE_URL: https://iv.duti.dev/companion
     restart: unless-stopped
     cap_drop:
       - ALL
