@@ -1,1 +1,4 @@
-The Helm chart has moved to a dedicated GitHub repository: https://github.com/iv-org/invidious-helm-chart/tree/master/invidious
+# My kubernetes deployment
+
+- Place your `companion.toml` and `config.yml` in `./config/`.
+- Run `bash configmap.sh`
