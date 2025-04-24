@@ -1,0 +1,65 @@
+# Deployment with node affinity
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: invidious
+  namespace: invidious
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: invidious
+  template:
+    metadata:
+      labels:
+        app: invidious
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: residential
+                operator: In
+                values: ["true"]
+      enableServiceLinks: false
+      containers:
+      - name: invidious
+        image: ghcr.io/acheong08/invidious:neko
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 3000
+        env:
+        - name: INVIDIOUS_CONFIG_FILE
+          value: /etc/invidious/config.yml
+        volumeMounts:
+        - name: config
+          mountPath: /etc/invidious/config.yml
+          subPath: config.yml
+          readOnly: true
+      volumes:
+      - name: config
+        configMap:
+          name: invidious-config
+          items:
+          - key: config.yml
+            path: config.yml
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+
+---
+# Service Exposure
+apiVersion: v1
+kind: Service
+metadata:
+  name: invidious
+  namespace: invidious
+spec:
+  type: ClusterIP
+  selector:
+    app: invidious
+  ports:
+  - protocol: TCP
+    port: 3000
+    targetPort: 3000
