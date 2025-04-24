@@ -1,0 +1,70 @@
+# Deployment with node affinity
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: invidious-companion
+  namespace: invidious
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: invidious-companion
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app: invidious-companion
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: residential
+                operator: In
+                values: ["true"]
+      containers:
+      - name: invidious-companion
+        image: quay.io/invidious/invidious-companion:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8282
+        env:
+        - name: CONFIG_FILE
+          value: /etc/invidious/config.toml
+        - name: YOUTUBESESSION_PLAYER_ID
+          value: 643afba4
+        volumeMounts:
+        - name: config
+          mountPath: /etc/invidious/config.toml
+          subPath: config.toml
+          readOnly: true
+      volumes:
+      - name: config
+        configMap:
+          name: invidious-companion-config
+          items:
+          - key: companion.toml
+            path: config.toml
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+
+---
+# Service Exposure
+apiVersion: v1
+kind: Service
+metadata:
+  name: invidious-companion
+  namespace: invidious
+spec:
+  type: ClusterIP
+  selector:
+    app: invidious-companion
+  ports:
+  - protocol: TCP
+    port: 8282
+    targetPort: 8282
