@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: anubis
+  namespace: invidious
+spec:
+  selector:
+    matchLabels:
+      app: anubis
+  replicas: 1
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app: anubis
+    spec:
+      containers:
+      - name: anubis
+        image: ghcr.io/techarohq/anubis:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8923
+        env:
+        - name: TARGET
+          value: http://invidious:3000
+        - name: BIND
+          value: ":8923"
+        - name: COOKIE_DOMAIN
+          value: iv.duti.dev
+        - name: SERVE_ROBOTS_TXT
+          value: "true"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: anubis
+  namespace: invidious
+spec:
+  type: ClusterIP
+  selector:
+    app: anubis
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8923

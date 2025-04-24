@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: yt-proxy
+  namespace: invidious
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: yt-proxy
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app: yt-proxy
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: residential
+                operator: In
+                values: ["true"]
+      containers:
+      - name: yt-proxy
+        image: git.nadeko.net/fijxu/http3-ytproxy:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: yt-proxy
+  namespace: invidious
+spec:
+  type: ClusterIP
+  selector:
+    app: yt-proxy
+  ports:
+  - protocol: TCP
+    port: 8080
+    targetPort: 8080

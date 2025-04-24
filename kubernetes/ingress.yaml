@@ -1,0 +1,112 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-production
+    spec.ingressClassName: traefik
+  labels:
+    app: invidious
+  name: invidious-ingress
+  namespace: invidious
+spec:
+  rules:
+  - host: iv.duti.dev
+    http:
+      paths:
+      - backend:
+          service:
+            name: caddy
+            port:
+              number: 80
+        path: /
+        pathType: Prefix
+  tls:
+  - hosts:
+    - iv.duti.dev
+    secretName: invidious-tls
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: caddy
+  namespace: invidious
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: caddy
+  template:
+    metadata:
+      labels:
+        app: caddy
+    spec:
+      containers:
+      - name: caddy
+        image: caddy:latest
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: caddy-config-volume
+          mountPath: /etc/caddy
+      volumes:
+      - name: caddy-config-volume
+        configMap:
+          name: caddy-config
+          items:
+          - key: Caddyfile
+            path: Caddyfile
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: caddy-config
+  namespace: invidious
+data:
+  Caddyfile: |
+    :80 {
+        route {
+            @proxy-routes expression `path_regexp('^/(vi/|vi_webp/|sb/|ggpht/|a/|ytc/)')`
+            @api-blocked {
+                path /api/v1/videos/*
+                path /api/manifest/hls_playlist/*
+                path /api/v1/channels/*
+            }
+            handle @api-blocked {
+                respond "API disabled due to abuse" 418
+            }
+            handle @proxy-routes {
+                header yt-proxy "true"
+                reverse_proxy yt-proxy:8080
+            }
+            handle /.within.website/* {
+                reverse_proxy anubis:80
+            }
+            handle /watch {
+                reverse_proxy anubis:80
+            }
+            handle /videoplayback {
+                header yt-proxy "true"
+                reverse_proxy yt-proxy:8080
+            }
+            handle_path /companion/* {
+                header companion "true"
+                reverse_proxy invidious-companion:8282
+            }
+            handle /* {
+                reverse_proxy invidious:3000
+            }
+        }
+    }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: caddy
+  namespace: invidious
+spec:
+  type: ClusterIP
+  selector:
+    app: caddy
+  ports:
+    - port: 80
+      targetPort: 80
