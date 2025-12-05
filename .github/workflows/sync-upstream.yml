@@ -1,0 +1,63 @@
+name: Sync Fork with Upstream (Force Push)
+
+on:
+  schedule:
+    - cron: "0 1 * * *"
+  workflow_dispatch:
+
+# ============================================
+# CONFIGURATION - Edit these for your fork
+# ============================================
+env:
+  UPSTREAM_REPO: "https://github.com/iv-org/invidious.git"
+  UPSTREAM_BRANCH: "master"
+  FORK_BRANCH: "neko"
+# ============================================
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.FORK_BRANCH }}
+          fetch-depth: 0
+
+      - name: Configure Git identity
+        run: |
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+
+      - name: Add upstream and fetch
+        run: |
+          git remote add upstream ${{ env.UPSTREAM_REPO }}
+          git fetch upstream
+
+      - name: Rebase fork onto upstream
+        id: rebase
+        run: |
+          git checkout ${{ env.FORK_BRANCH }}
+
+          # Attempt rebase
+          if git rebase upstream/${{ env.UPSTREAM_BRANCH }}; then
+            echo "result=clean" >> $GITHUB_OUTPUT
+          else
+            echo "result=conflict" >> $GITHUB_OUTPUT
+            git rebase --abort || true
+          fi
+
+      - name: Force push if clean
+        if: steps.rebase.outputs.result == 'clean'
+        run: |
+          git push --force-with-lease origin ${{ env.FORK_BRANCH }}
+          echo "Rebase clean — ${{ env.FORK_BRANCH }} updated from upstream/${{ env.UPSTREAM_BRANCH }}."
+
+      - name: Create or update conflict issue
+        if: steps.rebase.outputs.result == 'conflict'
+        uses: peter-evans/create-issue-from-file@v5
+        with:
+          title: "Upstream Sync Conflict"
+          content-filepath: .github/conflict-notice.md
+          labels: upstream-sync, conflict
